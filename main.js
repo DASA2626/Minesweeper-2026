@@ -4,10 +4,10 @@ const WOOL = "⬜️";
 const FLAG = "🚩";
 const BOOMS = "💣";
 
-
-
 var gBoard;
-var gStartTime
+var gStartTime;
+var gTimerInterval;
+var gIsFirstClick = true;
 
 const gLevel = {
   SIZE: 8,
@@ -25,11 +25,22 @@ function onInit() {
   gBoard = buildBoard();
   renderBoard(gBoard);
   setMinesNegsCount();
-   gameOver()
-  var elModal = document.querySelector('.game-over')
-  elModal.style.display = 'none'
-
+  
+ 
+  gGame.isOn = false;
+  gGame.revealedCount = 0;
+  gGame.markedCount = 0;
+  gIsFirstClick = true;
+  
+  if (gTimerInterval) clearInterval(gTimerInterval);
+  document.querySelector(".timer").innerText = "0.00";
+  
+  var elModal = document.querySelector('.game-over');
+  elModal.style.display = 'none';
+  document.querySelector('.res').style.display = 'none';
 }
+
+
 
 function buildBoard() {
   var board = [];
@@ -54,26 +65,27 @@ function renderBoard(board) {
   for (var i = 0; i < board.length; i++) {
     strHTML += "<tr>";
     for (var j = 0; j < board[0].length; j++) {
-      var cell = board[i][j]
+      var cell = board[i][j];
+      var cellContent = "";
 
-      if (cell.isMine) {
-        strHTML += `<td class="cell cell-${i}-${j}" 
-                        onclick="onCellClicked(this,${i},${j})" 
-                        oncontextmenu="onCellMarked(event,this,${i},${j})">${BOOMS}</td>`;
-      } else if (cell.minesAroundCount > 0) {
-        strHTML += `<td class="cell cell-${i}-${j}" 
-                        onclick="onCellClicked(this,${i},${j})" 
-                        oncontextmenu="onCellMarked(event,this,${i},${j})">${cell.minesAroundCount}</td>`;
-      } else {
-        strHTML += `<td class="cell cell-${i}-${j}" 
-                        onclick="onCellClicked(this,${i},${j})" 
-                        oncontextmenu="onCellMarked(event,this,${i},${j})"></td>`;
+      if (cell.isRevealed) {
+        if (cell.isMine) {
+          cellContent = BOOMS;
+        } else if (cell.minesAroundCount > 0) {
+          cellContent = cell.minesAroundCount;
+        }
+       } else if (cell.isMarked) {
+        cellContent = FLAG;
       }
+
+      strHTML += `<td class="cell cell-${i}-${j} ${cell.isRevealed ? 'revealed' : ''}" 
+                      onclick="onCellClicked(this,${i},${j})" 
+                      oncontextmenu="onCellMarked(event,this,${i},${j})">${cellContent}</td>`;
     }
     strHTML += "</tr>";
   }
-
   strHTML += "</tbody></table>";
+
   document.querySelector(".board-container").innerHTML = strHTML;
 }
 
@@ -98,63 +110,92 @@ function setMinesNegsCount() {
 
       if (cell.isMine) continue;
 
-      for (var x = i - 1; x <= i + 1; ++x) {
-        for (var y = j - 1; y <= j + 1; ++y){
-        if (x === i && y === j) continue
-        if (x < 0 || x >= gBoard.length)continue 
-        if (y < 0 || y >= gBoard[0].length)continue 
-        if (gBoard[x][y].isMine) counter++;
-      
+      for (var x = i - 1; x <= i + 1; x++) {
+        for (var y = j - 1; y <= j + 1; y++) {
+          if (x === i && y === j) continue;
+          if (x < 0 || x >= gBoard.length) continue;
+          if (y < 0 || y >= gBoard[0].length) continue;
+          if (gBoard[x][y].isMine) counter++;
+        }
       }
+      cell.minesAroundCount = counter;
     }
-    
-    cell.minesAroundCount = counter;
-    //  console.log(`תא [${i}][${j}]: ${counter} מוקש`);
   }
 }
-}
 
 
-function onCellClicked(elCell,i, j) {
-  var cell = gBoard[i][j]
+function onCellClicked(elCell, i, j) {
+  var cell = gBoard[i][j];
+
+  if (cell.isMarked || cell.isRevealed || !gGame.isOn && !gIsFirstClick) return;
+
+
+  if (gIsFirstClick) {
+    gGame.isOn = true;
+    gIsFirstClick = false;
+    startTimer();
+  }
+
+  cell.isRevealed = true;
+  gGame.revealedCount++;
+
   if (cell.isMine) {
-    elCell.innerText = BOOMS
-    console.log("BOOM!")
-    
-    gameOver()
-  } else if (cell.minesAroundCount > 0) {
-    elCell.innerText = cell.minesAroundCount
-    console.log(cell.minesAroundCount);
-  } else {
-    elCell.innerText = ''
+    gameOver(false);
+    return;
   }
-  cell.isRevealed = true
-}
 
+  if (cell.minesAroundCount === 0) {
+    expandShown(i, j);
+  }
+
+  renderBoard(gBoard);
+  checkVictory();
+}
 
 
 
 function onCellMarked(event, elCell, i, j) {
+  event.preventDefault();
 
-  event.preventDefault()
+  var cell = gBoard[i][j];
+  if (cell.isRevealed) return;
 
-  var cell = gBoard[i][j]
+  cell.isMarked = !cell.isMarked;
+  gGame.markedCount += cell.isMarked ? 1 : -1;
 
- 
-  cell.isMarked = !cell.isMarked
+  renderBoard(gBoard);
+}
 
-  if (cell.isMarked) {
-    elCell.innerHTML = FLAG
-  } else {
-    elCell.innerHTML = WOOL
+
+function checkVictory() {
+  var totalCells = gLevel.SIZE * gLevel.SIZE;
+  var safeCells = totalCells - gLevel.MINES;
+
+  if (gGame.revealedCount === safeCells) {
+    gameOver(true);
   }
 }
 
-function gameOver() {
-  var elModal = document.querySelector('.game-over')
-  elModal.style.display = 'block'
-}
+function gameOver(isVictory) {
+  gGame.isOn = false;
+  clearInterval(gTimerInterval);
 
+  // חשיפת כל המוקשים
+  for (var i = 0; i < gBoard.length; i++) {
+    for (var j = 0; j < gBoard[0].length; j++) {
+      if (gBoard[i][j].isMine) {
+        gBoard[i][j].isRevealed = true;
+      }
+    }
+  }
+  
+  renderBoard(gBoard);
+
+  var elModal = document.querySelector('.game-over');
+  elModal.innerText = isVictory ? '🎉 YOU WIN! 🎉' : '💥 GAME OVER! 💥';
+  elModal.style.display = 'block';
+  document.querySelector('.res').style.display = 'block';
+}
 
 
 function startTimer() {
@@ -162,9 +203,7 @@ function startTimer() {
 
   gTimerInterval = setInterval(() => {
     var timeDiff = Date.now() - gStartTime;
-
     var seconds = (timeDiff / 1000).toFixed(2);
-
     document.querySelector(".timer").innerText = seconds;
   }, 100);
 }
