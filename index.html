@@ -12,14 +12,30 @@
 
     <h1>Minesweeper</h1>
 
+       <div class="difficulty-buttons">
+      <button onclick="setDifficulty('beginner')" class="difficulty-btn active">
+        🟢 beginner
+      </button>
+      <button onclick="setDifficulty('medium')" class="difficulty-btn">
+        🟡 medium
+      </button>
+      <button onclick="setDifficulty('expert')" class="difficulty-btn">
+        🔴 expert
+      </button>
+    </div>
 
-    <h2 class="startTimer()"><span class="timer">00:00</span></h2>
+    <button onclick="onInit()" class="res" hidden >Restart</button>
+
+    <h2 class="startTimer()"><span class="timer">000:000</span></h2>
+
+    <button onclick="countLife()" class="life">😀 Life 3 </button>
 
     <div class="board-container"></div>
 
     <div class="game-over"  hidden >GAME OVER!</div>
 
-    <button onclick="onInit()" class="res" hidden >Restart</button>
+
+    
 
     <footer>SHAI DASA</footer>
   </body>
