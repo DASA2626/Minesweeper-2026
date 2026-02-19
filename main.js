@@ -91,7 +91,7 @@ function renderBoard(board) {
 
       strHTML += `<td class="cell cell-${i}-${j} ${cell.isRevealed ? 'revealed' : ''}" 
                       onclick="onCellClicked(this,${i},${j})" 
-                      oncontextmenu="onCellMarked(event,this,${i},${j})">${cellContent}</td>`;
+                      oncontextmenu="onCellMarked(event,${i},${j})">${cellContent}</td>`;
     }
     strHTML += "</tr>";
   }
